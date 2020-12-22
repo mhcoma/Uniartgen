@@ -66,9 +66,10 @@ class FontData:
 			before = value
 		print('완료')
 
-
+'''
 fontname = os.path.join('windows', 'fonts', 'batang.ttc')
 fontdata = FontData(fontname, 8)
 
 imagedata = ImageData('ranma.jpg', 800)
 imagedata.generate('test.txt', fontdata)
+'''
