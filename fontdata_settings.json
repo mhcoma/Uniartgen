@@ -1,9 +1,9 @@
 {
 	"ranges" : [
-		[44032, 55203]
 	],
 	"characters" : [
+		"#", " "
 	],
 	"font_file_name" : "d2coding.ttf",
-	"font_size" : 32
+	"font_size" : 8
 }

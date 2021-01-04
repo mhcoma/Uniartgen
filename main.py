@@ -4,25 +4,40 @@ import PIL.Image
 import PIL.ImageDraw
 import PIL.ImageFont
 import PIL.ImageStat
+import PIL.ImageOps
 
 
 import json
 import os
 
+class TextData:
+	def __init__(self, out:tuple):
+		self.text = out[0]
+		self.font_size = out[1]
+
+	def output_text(self, output_file_name = ''):
+		if output_file_name == '':
+			output_file_name = 'output.txt'
+		file = open(output_file_name, 'w', encoding = 'utf-8')
+		file.write(self.text)
+		file.close()
+
+
 class ImageData:
 	def __init__(self, image_file_name):
 		self.image_file_name = os.path.splitext(image_file_name)[0]
 		self.image = PIL.Image.open(image_file_name)
-
-		self.data:list[list[float]] = []
 	
+	def invert(self):
+		self.image = PIL.ImageOps.invert(self.image)
+
 	def resize(self, size, keep_width = True, keep_ratio = True):
 		if keep_ratio:
 			aspect_ratio = self.image.size[0] / self.image.size[1]
 			if keep_width:
-				size_tuple = (size, int(size * aspect_ratio))
+				size_tuple = (size, int(size / aspect_ratio))
 			else:
-				size_tuple = (int(size / aspect_ratio), size)
+				size_tuple = (int(size * aspect_ratio), size)
 		else:
 			if keep_width:
 				size_tuple = (size, self.image.size[1])
@@ -34,15 +49,12 @@ class ImageData:
 		if keep_width:
 			size_tuple = (self.image.width, int(self.image.height * ratio))
 		else:
-			size_tuple = (int(self.image.width) * ratio, self.image.height)
+			size_tuple = (int(self.image.width / ratio), self.image.height)
 		self.image = self.image.resize(size_tuple)
 			
 
 
-	def generate(self, fontdata, normalize = True, nearest = True, output_file_name = ''):
-		if output_file_name == '':
-			output_file_name = self.image_file_name + '.txt'
-		file = open(output_file_name, 'w', encoding = 'utf-8')
+	def generate(self, fontdata, normalize = True, nearest = True):
 		
 		min = 256
 		max = -1
@@ -61,7 +73,9 @@ class ImageData:
 		diff = max - min
 
 
-		print('파일 작성 중... ', end = '')
+		print('문자열 작성 중... ', end = '')
+
+		output_text = ''
 		for i in range(self.image.size[1]):
 			for j in range(self.image.size[0]):
 				average = 0
@@ -75,27 +89,28 @@ class ImageData:
 					before_value = fontdata.value_list[0]
 					for k in fontdata.value_list:
 						if k[1] >= average:
-							diff_before = before_value[1] - average
-							diff_current = k[1] - average
+							diff_before = abs(before_value[1] - average)
+							diff_current = abs(k[1] - average)
 							if diff_current <= diff_before:
 								write_value = k[0]
 							else:
 								write_value = before_value[0]
-							file.write(chr(write_value))
+							output_text += chr(write_value)
 							break
 						before_value = k
 					else:
-						file.write(chr(fontdata.value_list[-1][0]))
+						output_text += chr(fontdata.value_list[-1][0])
 				else:
 					for k in fontdata.value_list:
 						if k[1] >= average:
-							file.write(chr(k[0]))
+							output_text += chr(k[0])
 							break
 					else:
-						file.write(chr(fontdata.value_list[-1][0]))
-			file.write('\n')
-		file.close()
+						output_text += chr(fontdata.value_list[-1][0])
+			output_text += '\n'
 		print('완료')
+
+		return output_text, fd.font_size
 
 class FontData:
 	def __init__(self, settings_file_name = 'fontdata_settings.json'):
@@ -104,16 +119,21 @@ class FontData:
 		
 		self.ranges:list[range] = []
 		for r in json_data['ranges']:
+			if type(r[0]) == str:
+				r[0] = ord(r[0])
+			if type(r[1]) == str:
+				r[1] = ord(r[1])
 			self.ranges.append(range(r[0], r[1] + 1))
 		for c in json_data['characters']:
 			self.ranges.append(range(ord(c), ord(c) + 1))
 		self.font_file_name:str = json_data['font_file_name']
 		self.font_size:int = json_data['font_size']
 	
-	def generate(self):
+	def generate(self, normalize = True):
 		data_file_name = self.font_file_name + '_' + str(self.font_size)
 		for r in self.ranges:
 			data_file_name += '_' + str(r.start) + '-' + str(r.stop - 1)
+		data_file_name += '-' + str(normalize)
 		data_file_name += '.json'
 
 		print('데이터 불러오는 중... ', end = '')
@@ -142,12 +162,17 @@ class FontData:
 			min = old_list[0][0]
 			max = old_list[-1][0]
 			diff = max - min
+			if diff == 0:
+				diff = 1
 
 			self.value_list = []
 			before = 1.0
 			print('정규화 및 중복 값 제거 중... ', end = '')
 			for i in range(len(old_list)):
-				value = ((old_list[i][0] - min) * 255) / diff
+				if normalize:
+					value = ((old_list[i][0] - min) * 255) / diff
+				else:
+					value = old_list[i][0]
 				if before != value:
 					self.value_list.append([old_list[i][1], value])
 				before = value
@@ -158,9 +183,11 @@ class FontData:
 			json_file.close()
 
 fd = FontData()
-fd.generate()
+fd.generate(True)
 
-id = ImageData('hf1.jpg')
-id.resize(400)
-id.resize_by_ratio(2)
-id.generate(fd)
+
+id = ImageData('layout.png')
+id.resize(55, True)
+id.resize_by_ratio(2.8, True)
+td = TextData(id.generate(fd, True))
+td.output_text('test.txt')
