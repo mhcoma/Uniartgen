@@ -1,4 +1,4 @@
-import PySide2.QtWidgets as QtWidgets
+from PySide2.QtWidgets import *
 
 import PIL
 import PIL
@@ -12,9 +12,15 @@ import json
 import os
 import sys
 
-class Widget(QtWidgets.QWidget):
+class Widget(QWidget):
 	def __init__(self):
-		QtWidgets.QWidget.__init__(self)
+		QWidget.__init__(self)
+		self.resize(720, 480)
+		self.setWindowTitle('Uniartgen')
+
+		self.font_combo_box = QFontComboBox(self)
+
+		
 
 class TextData:
 	def __init__(self, out:tuple):
@@ -118,22 +124,72 @@ class ImageData:
 
 		return output_text, fontdata.font_size
 
-class FontData:
-	def __init__(self, settings_file_name = 'fontdata_settings.json'):
-		json_file = open(settings_file_name, 'r', encoding = 'utf-8')
+class FontDataSettings:
+	def __init__(self, file_name = 'fontdata_settings.json'):
+		self.file_name = file_name
+	
+	def load(self):
+		json_file = open(self.file_name, 'r', encoding = 'utf-8')
 		json_data = json.load(json_file)
+		json_file.close()
+
+		self.ranges:list[range] = [range(32, 127)]
+		self.font_file_name:str = "d2coding.ttf"
+		self.font_size:int = 8
+
+		if 'characters' in json_data:
+			self.ranges = []
+			for r in json_data['characters']:
+				begin:int
+				end:int
+
+				if type(r) == list:
+					if len(r) == 2:
+						rb:any = r[0]
+						re:any = r[1]
+						
+						if type(rb) == str:
+							begin = ord(rb)
+						elif type(rb) == int:
+							begin = rb
+						else:
+							continue
+
+						if type(re) == str:
+							end = ord(re)
+						elif type(re) == int:
+							end = re
+						else:
+							continue
+					else:
+						continue
+				elif type(r) == str:
+					begin = ord(r[0])
+					end = ord(r[0])
+				elif type(r) == int:
+					begin = r
+					end = r
+				else:
+					continue
+				self.ranges.append(range(begin, end + 1))
+
+		if 'font_file_name' in json_data:
+			temp = json_data['font_file_name']
+			if type(temp) == str:
+				self.font_file_name = temp
 		
-		self.ranges:list[range] = []
-		for r in json_data['ranges']:
-			if type(r[0]) == str:
-				r[0] = ord(r[0])
-			if type(r[1]) == str:
-				r[1] = ord(r[1])
-			self.ranges.append(range(r[0], r[1] + 1))
-		for c in json_data['characters']:
-			self.ranges.append(range(ord(c), ord(c) + 1))
-		self.font_file_name:str = json_data['font_file_name']
-		self.font_size:int = json_data['font_size']
+		if 'font_size' in json_data:
+			temp = json_data['font_size']
+			if type(temp) == int:
+				self.font_size = temp
+		
+		print(self.ranges)
+
+class FontData:
+	def __init__(self, settings:FontDataSettings):
+		self.ranges = settings.ranges
+		self.font_file_name = settings.font_file_name
+		self.font_size = settings.font_size
 	
 	def generate(self, normalize = True):
 		data_file_name = self.font_file_name + '_' + str(self.font_size)
@@ -188,9 +244,5 @@ class FontData:
 			json.dump(self.value_list, json_file)
 			json_file.close()
 
-app = QtWidgets.QApplication(sys.argv)
-
-widget = Widget()
-widget.show()
-
-sys.exit(app.exec_())
+fd = FontDataSettings()
+fd.load()
