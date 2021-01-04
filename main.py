@@ -20,8 +20,6 @@ class Widget(QWidget):
 
 		self.font_combo_box = QFontComboBox(self)
 
-		
-
 class TextData:
 	def __init__(self, out:tuple):
 		self.text = out[0]
@@ -33,7 +31,6 @@ class TextData:
 		file = open(output_file_name, 'w', encoding = 'utf-8')
 		file.write(self.text)
 		file.close()
-
 
 class ImageData:
 	def __init__(self, image_file_name):
@@ -64,8 +61,6 @@ class ImageData:
 			size_tuple = (int(self.image.width / ratio), self.image.height)
 		self.image = self.image.resize(size_tuple)
 			
-
-
 	def generate(self, fontdata, normalize = True, nearest = True):
 		
 		min = 256
@@ -127,11 +122,11 @@ class ImageData:
 class FontDataSettings:
 	def __init__(self, file_name = 'fontdata_settings.json'):
 		self.file_name:str = file_name
-
 		self.ranges:list[range] = [range(32, 127)]
 		self.font_file_name:str = "d2coding.ttf"
 		self.font_size:int = 8
-	
+		self.normalize:bool = True
+
 	def new(self):
 		ranges_temp:list[list[int]] = []
 		for i in self.ranges:
@@ -140,7 +135,8 @@ class FontDataSettings:
 		json_data = {
 			'ranges' : ranges_temp,
 			'font_file_name' : self.font_file_name,
-			'font_size' : self.font_size
+			'font_size' : self.font_size,
+			'normalize' : self.normalize
 		}
 		return json_data
 	
@@ -217,10 +213,15 @@ class FontDataSettings:
 				temp = json_data['font_size']
 				if type(temp) == int:
 					self.font_size = temp
+			
+			if 'normalize' in json_data:
+				temp = json_data['normalize']
+				if type(temp) == bool:
+					self.normalize = True
 		else:
 			json_data = self.new()
 		json_file = open(self.file_name, 'w', encoding = 'utf-8')
-		json.dump(json_data, json_file)
+		json.dump(json_data, json_file, indent = '\t')
 		json_file.close()
 
 class FontData:
@@ -228,6 +229,7 @@ class FontData:
 		self.ranges:list[range] = settings.ranges
 		self.font_file_name:str = settings.font_file_name
 		self.font_size:int = settings.font_size
+		self.normalize:bool = settings.normalize
 		self.list_data:list[dict] = []
 		self.load_list()
 		if not self.load():
@@ -242,7 +244,7 @@ class FontData:
 			return True
 		else:
 			list_file = open(list_file_name, 'w')
-			json.dump(self.list_data, list_file)
+			json.dump(self.list_data, list_file, indent = '\t')
 			list_file.close()
 
 	def load(self):
@@ -269,13 +271,22 @@ class FontData:
 			else:
 				continue
 
+			if 'normalize' in i:
+				if i['normalize'] != self.normalize:
+					continue
+			else:
+				continue
+
 			if 'data_file_name' in i:
 				data_file_name = os.path.join('fontdata', i['data_file_name'])
-				print(data_file_name)
 				if os.path.isfile(data_file_name):
 					data_file = open(data_file_name, 'r')
-					self.data = json.load(data_file)
-					data_file.close()
+					try:
+						self.data = json.load(data_file)
+						data_file.close()
+					except:
+						self.generate(data_file_name = data_file_name)
+						return True
 					return True
 				else:
 					continue
@@ -283,7 +294,7 @@ class FontData:
 				continue
 		return False
 
-	def generate(self, normalize = True):
+	def generate(self, data_file_name = None):
 		font = PIL.ImageFont.truetype(self.font_file_name, self.font_size, encoding = 'utf-8')
 		old_list = []
 		print('서체로부터 밝기 캡처 중... ', end = '')
@@ -309,7 +320,7 @@ class FontData:
 		before = 1.0
 		print('정규화 및 중복 값 제거 중... ', end = '')
 		for i in range(len(old_list)):
-			if normalize:
+			if self.normalize:
 				value = ((old_list[i][0] - min) * 255) / diff
 			else:
 				value = old_list[i][0]
@@ -318,11 +329,12 @@ class FontData:
 			before = value
 		print('완료')
 
-		data_file_name = '{}.json'.format(len(self.list_data))
+		if data_file_name == None:
+			data_file_name = '{}.json'.format(len(self.list_data))
+		
 		json_file = open(os.path.join('fontdata', data_file_name), 'w')
-		json.dump(self.data, json_file)
+		json.dump(self.data, json_file, indent = '\t')
 		json_file.close()
-
 		
 		ranges_temp:list[list[int]] = []
 		for i in self.ranges:
@@ -333,12 +345,13 @@ class FontData:
 				'ranges' : ranges_temp,
 				'font_file_name' : self.font_file_name,
 				'font_size' : self.font_size,
+				'normalize' : self.normalize,
 				'data_file_name' : data_file_name
 			}
 		)
 
 		list_file = open(self.list_file_name, 'w')
-		json.dump(self.list_data, list_file)
+		json.dump(self.list_data, list_file, indent = '\t')
 		list_file.close()
 
 
