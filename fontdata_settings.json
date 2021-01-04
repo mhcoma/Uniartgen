@@ -1,7 +1,1 @@
-{
-	"characters" : [
-		["가", "힣"]
-	],
-	"font_file_name" : "d2coding.ttf",
-	"font_size" : 8
-}
+{"ranges": [[32, 126]], "font_file_name": "d2coding.ttf", "font_size": 8}
