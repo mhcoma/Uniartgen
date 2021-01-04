@@ -1,3 +1,5 @@
+import PySide2.QtWidgets as QtWidgets
+
 import PIL
 import PIL
 import PIL.Image
@@ -6,9 +8,13 @@ import PIL.ImageFont
 import PIL.ImageStat
 import PIL.ImageOps
 
-
 import json
 import os
+import sys
+
+class Widget(QtWidgets.QWidget):
+	def __init__(self):
+		QtWidgets.QWidget.__init__(self)
 
 class TextData:
 	def __init__(self, out:tuple):
@@ -110,7 +116,7 @@ class ImageData:
 			output_text += '\n'
 		print('완료')
 
-		return output_text, fd.font_size
+		return output_text, fontdata.font_size
 
 class FontData:
 	def __init__(self, settings_file_name = 'fontdata_settings.json'):
@@ -182,12 +188,9 @@ class FontData:
 			json.dump(self.value_list, json_file)
 			json_file.close()
 
-fd = FontData()
-fd.generate(True)
+app = QtWidgets.QApplication(sys.argv)
 
+widget = Widget()
+widget.show()
 
-id = ImageData('layout.png')
-id.resize(55, True)
-id.resize_by_ratio(2.8, True)
-td = TextData(id.generate(fd, True))
-td.output_text('test.txt')
+sys.exit(app.exec_())
