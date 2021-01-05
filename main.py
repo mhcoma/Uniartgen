@@ -20,99 +20,6 @@ class Widget(QWidget):
 
 		self.font_combo_box = QFontComboBox(self)
 
-class TextData:
-	def __init__(self, out:tuple):
-		self.text = out[0]
-		self.font_size = out[1]
-
-	def output_text(self, output_file_name = ''):
-		if output_file_name == '':
-			output_file_name = 'output.txt'
-		file = open(output_file_name, 'w', encoding = 'utf-8')
-		file.write(self.text)
-		file.close()
-
-class ImageData:
-	def __init__(self, image_file_name):
-		self.image_file_name = os.path.splitext(image_file_name)[0]
-		self.image = PIL.Image.open(image_file_name)
-	
-	def invert(self):
-		self.image = PIL.ImageOps.invert(self.image)
-
-	def resize(self, size, keep_width = True, keep_ratio = True):
-		if keep_ratio:
-			aspect_ratio = self.image.size[0] / self.image.size[1]
-			if keep_width:
-				size_tuple = (size, int(size / aspect_ratio))
-			else:
-				size_tuple = (int(size * aspect_ratio), size)
-		else:
-			if keep_width:
-				size_tuple = (size, self.image.size[1])
-			else:
-				size_tuple = (self.image.size[0], size)
-		self.image = self.image.resize(size_tuple)
-	
-	def resize_by_ratio(self, ratio, keep_width = True):
-		if keep_width:
-			size_tuple = (self.image.width, int(self.image.height * ratio))
-		else:
-			size_tuple = (int(self.image.width / ratio), self.image.height)
-		self.image = self.image.resize(size_tuple)
-			
-	def generate(self, fontdata, normalize = True, nearest = True):
-		
-		min = 256
-		max = -1
-		for i in range(self.image.size[1]):
-			for j in range(self.image.size[0]):
-				average = 0
-				for p in self.image.getpixel((j, i)):
-					average += p
-				average /= 3
-				if average > max:
-					max = average
-				if average < min:
-					min = average
-		diff = max - min
-
-		output_text = ''
-		for i in range(self.image.size[1]):
-			for j in range(self.image.size[0]):
-				average = 0
-				for p in self.image.getpixel((j, i)):
-					average += p
-				average /= 3
-				if normalize:
-					average = ((average - min) / diff) * 255
-				
-				if nearest:
-					before_value = fontdata.value_list[0]
-					for k in fontdata.value_list:
-						if k[1] >= average:
-							diff_before = abs(before_value[1] - average)
-							diff_current = abs(k[1] - average)
-							if diff_current <= diff_before:
-								write_value = k[0]
-							else:
-								write_value = before_value[0]
-							output_text += chr(write_value)
-							break
-						before_value = k
-					else:
-						output_text += chr(fontdata.value_list[-1][0])
-				else:
-					for k in fontdata.value_list:
-						if k[1] >= average:
-							output_text += chr(k[0])
-							break
-					else:
-						output_text += chr(fontdata.value_list[-1][0])
-			output_text += '\n'
-
-		return output_text, fontdata.font_size
-
 class FontDataSettings:
 	def __init__(self, file_name = 'fontdata_settings.json'):
 		self.file_name:str = file_name
@@ -213,7 +120,7 @@ class FontDataSettings:
 			if 'normalize' in json_data:
 				temp = json_data['normalize']
 				if type(temp) == bool:
-					self.normalize = True
+					self.normalize = temp
 		else:
 			json_data = self.new()
 		json_file = open(self.file_name, 'w', encoding = 'utf-8')
@@ -281,25 +188,31 @@ class FontData:
 						self.data = json.load(data_file)
 						data_file.close()
 					except:
-						self.generate(data_file_name = data_file_name)
+						self.generate(
+							data_file_name = i['data_file_name'],
+							add_list = False
+						)
 						return True
 					return True
 				else:
-					continue
+					self.generate(
+						data_file_name = i['data_file_name'],
+						add_list = False
+					)
+					return True
 			else:
 				continue
 		return False
 
-	def generate(self, data_file_name = None):
+	def generate(self, data_file_name = None, add_list = True):
 		font = PIL.ImageFont.truetype(self.font_file_name, self.font_size, encoding = 'utf-8')
 		old_list = []
 
 		for r in self.ranges:
 			for i in r:
-				img = PIL.Image.new('RGB', (self.font_size, self.font_size), color = (255, 255, 255))
+				img = PIL.Image.new('RGB', (font.getsize(chr(i))[0], self.font_size), color = (255, 255, 255))
 				draw = PIL.ImageDraw.Draw(img)
 				draw.text((0, 0), chr(i), font = font, fill = (0, 0, 0))
-				print(font.getsize(chr(i)))
 				stat = PIL.ImageStat.Stat(img)
 				value = stat.mean[0]
 				old_list.append([value, i])
@@ -329,24 +242,142 @@ class FontData:
 		json.dump(self.data, json_file, indent = '\t')
 		json_file.close()
 		
-		ranges_temp:list[list[int]] = []
-		for i in self.ranges:
-			ranges_temp.append([i.start, i.stop])
 
-		self.list_data.append(
-			{
-				'ranges' : ranges_temp,
-				'font_file_name' : self.font_file_name,
-				'font_size' : self.font_size,
-				'normalize' : self.normalize,
-				'data_file_name' : data_file_name
-			}
-		)
+		if add_list:
+			ranges_temp:list[list[int]] = []
+			for i in self.ranges:
+				ranges_temp.append([i.start, i.stop])
+			
+			self.list_data.append(
+				{
+					'ranges' : ranges_temp,
+					'font_file_name' : self.font_file_name,
+					'font_size' : self.font_size,
+					'normalize' : self.normalize,
+					'data_file_name' : data_file_name
+				}
+			)
 
-		list_file = open(self.list_file_name, 'w')
-		json.dump(self.list_data, list_file, indent = '\t')
-		list_file.close()
+			list_file = open(self.list_file_name, 'w')
+			json.dump(self.list_data, list_file, indent = '\t')
+			list_file.close()
 
+class ImageData:
+	def __init__(self, image_file_name):
+		self.image_file_name = os.path.splitext(image_file_name)[0]
+		self.image = PIL.Image.open(image_file_name)
+	
+	def invert(self):
+		self.image = PIL.ImageOps.invert(self.image)
+
+	def resize(self, size, keep_width = True, keep_ratio = True):
+		if keep_ratio:
+			aspect_ratio = self.image.size[0] / self.image.size[1]
+			if keep_width:
+				size_tuple = (size, int(size / aspect_ratio))
+			else:
+				size_tuple = (int(size * aspect_ratio), size)
+		else:
+			if keep_width:
+				size_tuple = (size, self.image.size[1])
+			else:
+				size_tuple = (self.image.size[0], size)
+		self.image = self.image.resize(size_tuple)
+	
+	def resize_by_ratio(self, ratio, keep_width = True):
+		if keep_width:
+			size_tuple = (self.image.width, int(self.image.height * ratio))
+		else:
+			size_tuple = (int(self.image.width / ratio), self.image.height)
+		self.image = self.image.resize(size_tuple)
+			
+	def generate(self, fontdata, normalize = True, nearest = True):
+		
+		min = 256
+		max = -1
+		for i in range(self.image.size[1]):
+			for j in range(self.image.size[0]):
+				average = 0
+				for p in self.image.getpixel((j, i)):
+					average += p
+				average /= 3
+				if average > max:
+					max = average
+				if average < min:
+					min = average
+		diff = max - min
+
+		output_text = ''
+		for i in range(self.image.size[1]):
+			for j in range(self.image.size[0]):
+				average = 0
+				for p in self.image.getpixel((j, i)):
+					average += p
+				average /= 3
+				if normalize:
+					average = ((average - min) / diff) * 255
+				
+				if nearest:
+					before_value = fontdata.data[0]
+					for k in fontdata.data:
+						if k[1] >= average:
+							diff_before = abs(before_value[1] - average)
+							diff_current = abs(k[1] - average)
+							if diff_current <= diff_before:
+								write_value = k[0]
+							else:
+								write_value = before_value[0]
+							output_text += chr(write_value)
+							break
+						before_value = k
+					else:
+						output_text += chr(fontdata.data[-1][0])
+				else:
+					for k in fontdata.data:
+						if k[1] >= average:
+							output_text += chr(k[0])
+							break
+					else:
+						output_text += chr(fontdata.data[-1][0])
+			output_text += '\n'
+
+		return TextData(output_text, fontdata, self.image_file_name)
+
+class TextData:
+	def __init__(self, output_text:str, fontdata:FontData, image_file_name:str):
+		self.text = output_text
+		self.image_file_name = image_file_name
+		self.font_file_name = fontdata.font_file_name
+		self.font_size = fontdata.font_size
+
+	def out_text(self, output_file_name = ''):
+		if output_file_name == '':
+			output_file_name = '{}_text.txt'.format(self.image_file_name)
+		file = open(output_file_name, 'w', encoding = 'utf-8')
+		file.write(self.text)
+		file.close()
+	
+	def out_img(self, output_file_name = ''):
+		if output_file_name == '':
+			output_file_name = '{}_text.png'.format(self.image_file_name)
+		font = PIL.ImageFont.truetype(self.font_file_name, self.font_size * 2, encoding = 'utf-8')
+
+		lines = self.text.splitlines()
+		size = (font.getsize(lines[0])[0], len(lines) * self.font_size * 2)
+		print(size)
+
+		img = PIL.Image.new('RGB', size, color = (255, 255, 255))
+		draw = PIL.ImageDraw.Draw(img)
+
+		for i in range(len(lines)):
+			draw.text((0, i * self.font_size * 2), lines[i], font = font, fill = (0, 0, 0))
+
+		img.save(output_file_name)
 
 fds = FontDataSettings()
 fd = FontData(fds)
+img = ImageData('sample.jpg')
+img.resize(400)
+img.resize_by_ratio(0.5)
+text = img.generate(fd, normalize = True)
+text.out_img()
