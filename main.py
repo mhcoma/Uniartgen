@@ -145,10 +145,10 @@ class FontDataSettings:
 				json_data = self.new()
 			json_file.close()
 
-			if 'characters' in json_data:
+			if 'ranges' in json_data:
 				self.ranges = []
 				temp:list[range] = []
-				for r in json_data['characters']:
+				for r in json_data['ranges']:
 					begin:int
 					end:int
 
@@ -299,6 +299,7 @@ class FontData:
 				img = PIL.Image.new('RGB', (self.font_size, self.font_size), color = (255, 255, 255))
 				draw = PIL.ImageDraw.Draw(img)
 				draw.text((0, 0), chr(i), font = font, fill = (0, 0, 0))
+				print(font.getsize(chr(i)))
 				stat = PIL.ImageStat.Stat(img)
 				value = stat.mean[0]
 				old_list.append([value, i])
