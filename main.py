@@ -65,7 +65,6 @@ class ImageData:
 		
 		min = 256
 		max = -1
-		print('정규화를 위한 값 계산 중... ', end = '')
 		for i in range(self.image.size[1]):
 			for j in range(self.image.size[0]):
 				average = 0
@@ -76,11 +75,7 @@ class ImageData:
 					max = average
 				if average < min:
 					min = average
-		print('완료')
 		diff = max - min
-
-
-		print('문자열 작성 중... ', end = '')
 
 		output_text = ''
 		for i in range(self.image.size[1]):
@@ -115,7 +110,6 @@ class ImageData:
 					else:
 						output_text += chr(fontdata.value_list[-1][0])
 			output_text += '\n'
-		print('완료')
 
 		return output_text, fontdata.font_size
 
@@ -126,6 +120,8 @@ class FontDataSettings:
 		self.font_file_name:str = "d2coding.ttf"
 		self.font_size:int = 8
 		self.normalize:bool = True
+
+		self.load()
 
 	def new(self):
 		ranges_temp:list[list[int]] = []
@@ -297,7 +293,6 @@ class FontData:
 	def generate(self, data_file_name = None):
 		font = PIL.ImageFont.truetype(self.font_file_name, self.font_size, encoding = 'utf-8')
 		old_list = []
-		print('서체로부터 밝기 캡처 중... ', end = '')
 
 		for r in self.ranges:
 			for i in r:
@@ -307,7 +302,6 @@ class FontData:
 				stat = PIL.ImageStat.Stat(img)
 				value = stat.mean[0]
 				old_list.append([value, i])
-		print('완료')
 
 		old_list.sort()
 		min = old_list[0][0]
@@ -318,7 +312,6 @@ class FontData:
 
 		self.data = []
 		before = 1.0
-		print('정규화 및 중복 값 제거 중... ', end = '')
 		for i in range(len(old_list)):
 			if self.normalize:
 				value = ((old_list[i][0] - min) * 255) / diff
@@ -327,7 +320,6 @@ class FontData:
 			if before != value:
 				self.data.append([old_list[i][1], value])
 			before = value
-		print('완료')
 
 		if data_file_name == None:
 			data_file_name = '{}.json'.format(len(self.list_data))
@@ -356,6 +348,4 @@ class FontData:
 
 
 fds = FontDataSettings()
-fds.load()
-
 fd = FontData(fds)
