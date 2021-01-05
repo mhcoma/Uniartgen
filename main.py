@@ -24,7 +24,7 @@ class FontDataSettings:
 	def __init__(self, file_name = 'fontdata_settings.json'):
 		self.file_name:str = file_name
 		self.ranges:list[range] = [range(32, 127)]
-		self.font_file_name:str = "d2coding.ttf"
+		self.font_file_name:str = os.path.join("fonts", "d2coding.ttf")
 		self.font_size:int = 8
 		self.normalize:bool = True
 
