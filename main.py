@@ -12,13 +12,27 @@ import json
 import os
 import sys
 
-class Widget(QWidget):
-	def __init__(self):
-		QWidget.__init__(self)
+class MainWindow(QMainWindow):
+	def __init__(self, parent = None):
+		QMainWindow.__init__(self, parent)
 		self.resize(720, 480)
 		self.setWindowTitle('Uniartgen')
 
-		self.font_combo_box = QFontComboBox(self)
+
+		exit_action = QAction('&Exit', self)
+		exit_action.setShortcut('Ctrl+Q')
+		exit_action.setStatusTip('Exit Application')
+		exit_action.triggered.connect(QApplication.exit)
+
+		layout_1 = QHBoxLayout()
+
+		menubar = self.menuBar()
+		menubar.setNativeMenuBar(False)
+		filemenu = menubar.addMenu('&File')
+
+		filemenu.addAction(exit_action)
+
+		
 
 class FontDataSettings:
 	def __init__(self, file_name = 'fontdata_settings.json'):
@@ -125,7 +139,7 @@ class FontDataSettings:
 					self.normalize = temp
 		
 		self.save()
-		
+
 class FontData:
 	def __init__(self, settings:FontDataSettings):
 		self.ranges:list[range] = settings.ranges
@@ -145,6 +159,7 @@ class FontData:
 			list_file.close()
 			return True
 		else:
+
 			list_file = open(list_file_name, 'w')
 			json.dump(self.list_data, list_file, indent = '\t')
 			list_file.close()
@@ -371,10 +386,7 @@ class TextData:
 
 		img.save(output_file_name)
 
-fds = FontDataSettings()
-fd = FontData(fds)
-img = ImageData('sample.jpg')
-img.resize(400)
-img.resize_by_ratio(0.5)
-text = img.generate(fd, normalize = True)
-text.out_img()
+app = QApplication(sys.argv)
+window = MainWindow()
+window.show()
+app.exec_()
