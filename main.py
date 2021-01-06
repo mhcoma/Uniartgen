@@ -27,10 +27,9 @@ class FontDataSettings:
 		self.font_file_name:str = os.path.join("fonts", "d2coding.ttf")
 		self.font_size:int = 8
 		self.normalize:bool = True
-
 		self.load()
 
-	def new(self):
+	def save(self):
 		ranges_temp:list[list[int]] = []
 		for i in self.ranges:
 			ranges_temp.append([i.start, i.stop - 1])
@@ -41,7 +40,10 @@ class FontDataSettings:
 			'font_size' : self.font_size,
 			'normalize' : self.normalize
 		}
-		return json_data
+
+		json_file = open(self.file_name, 'w', encoding = 'utf-8')
+		json.dump(json_data, json_file, indent = '\t')
+		json_file.close()
 	
 	def load(self):
 		if os.path.isfile(self.file_name):
@@ -121,12 +123,9 @@ class FontDataSettings:
 				temp = json_data['normalize']
 				if type(temp) == bool:
 					self.normalize = temp
-		else:
-			json_data = self.new()
-		json_file = open(self.file_name, 'w', encoding = 'utf-8')
-		json.dump(json_data, json_file, indent = '\t')
-		json_file.close()
-
+		
+		self.save()
+		
 class FontData:
 	def __init__(self, settings:FontDataSettings):
 		self.ranges:list[range] = settings.ranges
@@ -292,7 +291,6 @@ class ImageData:
 		self.image = self.image.resize(size_tuple)
 			
 	def generate(self, fontdata, normalize = True, nearest = True):
-		
 		min = 256
 		max = -1
 		for i in range(self.image.size[1]):
@@ -364,7 +362,6 @@ class TextData:
 
 		lines = self.text.splitlines()
 		size = (font.getsize(lines[0])[0], len(lines) * self.font_size * 2)
-		print(size)
 
 		img = PIL.Image.new('RGB', size, color = (255, 255, 255))
 		draw = PIL.ImageDraw.Draw(img)
