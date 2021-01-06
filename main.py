@@ -385,8 +385,3 @@ class TextData:
 			draw.text((0, i * self.font_size * 2), lines[i], font = font, fill = (0, 0, 0))
 
 		img.save(output_file_name)
-
-app = QApplication(sys.argv)
-window = MainWindow()
-window.show()
-app.exec_()
