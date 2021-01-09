@@ -8,6 +8,7 @@ import PIL.ImageFont
 import PIL.ImageStat
 import PIL.ImageOps
 
+import bisect
 import json
 import os
 import sys
@@ -79,12 +80,14 @@ class FontDataSettings:
 						if len(r) == 2:
 							rb:any = r[0]
 							re:any = r[1]
+
 							if type(rb) == str:
 								begin = ord(rb)
 							elif type(rb) == int:
 								begin = rb
 							else:
 								continue
+
 							if type(re) == str:
 								end = ord(re)
 							elif type(re) == int:
@@ -120,7 +123,7 @@ class FontDataSettings:
 							result = False
 					self.ranges.append(x)
 					temp.pop(0)
-					if result or len(temp) == 0:
+					if result and len(temp) == 0:
 						break
 			
 			if 'font_file_name' in json_data:
@@ -238,7 +241,7 @@ class FontData:
 		if diff == 0:
 			diff = 1
 
-		self.data = []
+		self.data:list[list[float, int]] = []
 		before = 1.0
 		for i in range(len(old_list)):
 			if self.normalize:
@@ -246,7 +249,7 @@ class FontData:
 			else:
 				value = old_list[i][0]
 			if before != value:
-				self.data.append([old_list[i][1], value])
+				self.data.append([value, old_list[i][1]])
 			before = value
 
 		if data_file_name == None:
@@ -305,7 +308,7 @@ class ImageData:
 			size_tuple = (int(self.image.width / ratio), self.image.height)
 		self.image = self.image.resize(size_tuple)
 			
-	def generate(self, fontdata, normalize = True, nearest = True):
+	def generate(self, fontdata:FontData, normalize = True, nearest = True):
 		min = 256
 		max = -1
 		for i in range(self.image.size[1]):
@@ -330,28 +333,15 @@ class ImageData:
 				if normalize:
 					average = ((average - min) / diff) * 255
 				
+
+				index = bisect.bisect(fontdata.data, [average])
 				if nearest:
-					before_value = fontdata.data[0]
-					for k in fontdata.data:
-						if k[1] >= average:
-							diff_before = abs(before_value[1] - average)
-							diff_current = abs(k[1] - average)
-							if diff_current <= diff_before:
-								write_value = k[0]
-							else:
-								write_value = before_value[0]
-							output_text += chr(write_value)
-							break
-						before_value = k
-					else:
-						output_text += chr(fontdata.data[-1][0])
-				else:
-					for k in fontdata.data:
-						if k[1] >= average:
-							output_text += chr(k[0])
-							break
-					else:
-						output_text += chr(fontdata.data[-1][0])
+					temp_left = abs(fontdata.data[index-1][1] - average)
+					temp_right = abs(fontdata.data[index][1] - average)
+					if temp_right > temp_left:
+						index -= 1
+
+				output_text += chr(fontdata.data[index][1])
 			output_text += '\n'
 
 		return TextData(output_text, fontdata, self.image_file_name)
@@ -372,7 +362,7 @@ class TextData:
 	
 	def out_img(self, output_file_name = ''):
 		if output_file_name == '':
-			output_file_name = '{}_text.png'.format(self.image_file_name)
+			output_file_name = '{}.png'.format(self.image_file_name)
 		font = PIL.ImageFont.truetype(self.font_file_name, self.font_size * 2, encoding = 'utf-8')
 
 		lines = self.text.splitlines()
@@ -385,3 +375,10 @@ class TextData:
 			draw.text((0, i * self.font_size * 2), lines[i], font = font, fill = (0, 0, 0))
 
 		img.save(output_file_name)
+
+fds = FontDataSettings()
+fd = FontData(fds)
+img = ImageData('test2.jpg')
+img.resize(200)
+txt = img.generate(fd, True)
+txt.out_img()
