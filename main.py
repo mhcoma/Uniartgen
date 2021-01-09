@@ -332,7 +332,6 @@ class ImageData:
 				average /= 3
 				if normalize:
 					average = ((average - min) / diff) * 255
-				
 
 				index = bisect.bisect(fontdata.data, [average])
 				if nearest:
